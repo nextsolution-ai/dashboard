@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "https://chatlabs-backend.onrender.com/api/:path*" },
-    { "source": "/:path*", "destination": "/index.html" }
-  ]
-} 
