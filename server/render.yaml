@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: chatlabs-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://nextsolutionai:0MMoCUuSkpjw1zx4@cluster0.apvb0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      - key: JWT_SECRET
+        value: your_jwt_secret_here
+      - key: VOICEFLOW_API_KEY
+        value: VF.DM.678ac49edb80fb6a72c1e4b0.rDoZRu0O11CtkOCN
+      - key: VOICEFLOW_PROJECT_ID
+        value: 678a517b631a401e6d1ace38
+
+      # BigQuery variables
+      - key: BIGQUERY_PROJECT_ID
+        value: grand-century-443515-g4
+      - key: BIGQUERY_DATASET_ID
+        value: my_dataset
+      - key: BIGQUERY_TABLE_ID
+        value: user_navigation
+      - key: BIGQUERY_API_BASE_URL
+        value: https://bigquery.googleapis.com/bigquery/v2
+      - key: AUTH_TOKEN_URL
+        value: https://oauth-token-gateway-7gjej4xv.uc.gateway.dev 
