@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: chatlabs-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://nextsolutionai:0MMoCUuSkpjw1zx4@cluster0.apvb0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      - key: JWT_SECRET
+        value: your_jwt_secret_here
+      - key: VOICEFLOW_API_KEY
+        value: VF.DM.678ac49edb80fb6a72c1e4b0.rDoZRu0O11CtkOCN
+      - key: VOICEFLOW_PROJECT_ID
+        value: 678a517b631a401e6d1ace38 
