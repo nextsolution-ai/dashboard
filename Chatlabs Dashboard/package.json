@@ -1,0 +1,17 @@
+{
+  "name": "chatlabs-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "cd client && npm run build",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm start\""
+  },
+  "dependencies": {
+    "concurrently": "^8.0.1"
+  }
+} 
