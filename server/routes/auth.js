@@ -77,14 +77,14 @@ router.post('/register', async (req, res) => {
 router.post('/login', cors(corsOptions), async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Check if user exists
+    
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Validate password
+    // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -97,17 +97,14 @@ router.post('/login', cors(corsOptions), async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Set CORS headers explicitly
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Credentials', true);
-
-    res.json({ 
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email 
-      } 
+    // Send response
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
     });
   } catch (err) {
     console.error('Login error:', err);
