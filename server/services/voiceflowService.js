@@ -5,9 +5,10 @@ const req = require('express/lib/request');
 
 class VoiceflowService {
   constructor() {
+    this.baseURL = process.env.VOICEFLOW_API_URL || 'https://general-runtime.voiceflow.com';
+    this.apiKey = process.env.VOICEFLOW_API_KEY;
     this.v1BaseUrl = 'https://api.voiceflow.com/v1';
     this.v2BaseUrl = 'https://api.voiceflow.com/v2';
-    this.runtimeUrl = 'https://general-runtime.voiceflow.com';
   }
 
   // Helper to get project credentials

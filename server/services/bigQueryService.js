@@ -62,6 +62,7 @@ const COUNTRY_CODES = {
 
 class BigQueryService {
   constructor() {
+    this.baseURL = process.env.BIGQUERY_API_URL || 'https://bigquery.googleapis.com/bigquery/v2';
     this.authToken = null;
     this.tokenExpiry = null;
   }
