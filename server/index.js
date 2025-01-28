@@ -17,10 +17,7 @@ const app = express();
 
 // Updated CORS setup
 app.use(cors({
-  origin: [
-    'https://chatlabs-alpha.vercel.app',
-    'http://localhost:3000'  // For local development
-  ],
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
