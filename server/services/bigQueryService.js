@@ -205,15 +205,36 @@ class BigQueryService {
           .map(row => safeGetFieldValue(row, 9).trim().toLowerCase())
     );
 
-    // Find intersection of IPs
-    const matchingIPs = [...voiceflowIPs].filter(ip => customerIPs.has(ip)).length;
+    // Find matching IPs and sum their values from field 12
+    let totalValue = 0;
+    const matchingIPs = [...voiceflowIPs].filter(ip => {
+      if (customerIPs.has(ip)) {
+        // Find all rows with this IP and sum their field 12 values
+        const matchingRows = rows.filter(row => 
+          safeGetFieldValue(row, 9)?.trim().toLowerCase() === ip
+        );
+        const rowValue = matchingRows.reduce((sum, row) => {
+          // Remove currency symbol and commas, then parse
+          const valueStr = safeGetFieldValue(row, 12) || '0';
+          const value = parseFloat(valueStr.replace(/[$,]/g, '')) || 0;
+          return sum + value;
+        }, 0);
+        totalValue += rowValue;
+        return true;
+      }
+      return false;
+    }).length;
 
     const conversionMetrics = {
       percentage: voiceflowIPs.size > 0 
         ? ((matchingIPs / voiceflowIPs.size) * 100).toFixed(2)
         : 0,
       matched: matchingIPs,
-      total: voiceflowIPs.size
+      total: voiceflowIPs.size,
+      value: (totalValue/100).toLocaleString('en-US', { 
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2 
+      })
     };
 
     const metrics = {
