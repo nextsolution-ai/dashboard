@@ -65,10 +65,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Log available routes
+// Log all registered routes
+console.log('Registered routes:');
 app._router.stack.forEach(function(r){
   if (r.route && r.route.path){
-    console.log(r.route.path)
+    console.log(r.route.method, r.route.path);
   }
 });
 
@@ -76,4 +77,5 @@ app.listen(config.port, () => {
   console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode`);
   console.log(`- Health check: http://localhost:${config.port}/health`);
   console.log(`- API endpoint: http://localhost:${config.port}/api/analytics`);
+  console.log(`Server running on port ${config.port}`);
 }); 

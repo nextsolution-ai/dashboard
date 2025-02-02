@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
+const bcrypt = require('bcryptjs');
 
 // Test endpoint to verify routing
 router.get('/test', [auth, admin], (req, res) => {
@@ -14,26 +15,22 @@ router.get('/test', [auth, admin], (req, res) => {
 // List all users with their projects
 router.get('/users', [auth, admin], async (req, res) => {
   try {
-    const users = await User.find()
-      .select('-password') // Exclude password
-      .populate('projects')
-      .populate('current_project');
+    const users = await User.find().select('-password').populate('projects').populate('current_project');
+    const projects = await Project.find();
 
     const formattedUsers = users.map(user => ({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      createdAt: user.createdAt,
-      projectsCount: user.projects.length,
-      projects: user.projects.map(project => ({
+      projects: user.projects.map(project => project._id),
+      projectsDetails: user.projects.map(project => ({
         id: project._id,
         name: project.name
       })),
-      currentProject: user.current_project ? {
-        id: user.current_project._id,
-        name: user.current_project.name
-      } : null
+      current_project: user.current_project?._id,
+      current_project_name: user.current_project?.name,
+      createdAt: user.createdAt
     }));
 
     res.json(formattedUsers);
@@ -109,6 +106,174 @@ router.get('/projects/:projectId/users', [auth, admin], async (req, res) => {
   } catch (error) {
     console.error('Error fetching project users:', error);
     res.status(500).json({ message: 'Failed to fetch project users' });
+  }
+});
+
+// POST /api/admin/projects
+// Create a new project
+router.post('/projects', [auth, admin], async (req, res) => {
+  try {
+    const { 
+      name, 
+      bigquery_config, 
+      voiceflow_config 
+    } = req.body;
+
+    // Create new project
+    const project = new Project({
+      name,
+      bigquery_config: {
+        project_id: bigquery_config.project_id,
+        dataset_id: bigquery_config.dataset_id,
+        table_id: bigquery_config.table_id
+      },
+      voiceflow_config: {
+        api_key: voiceflow_config.api_key,
+        project_id: voiceflow_config.project_id
+      }
+    });
+
+    await project.save();
+
+    // Return the project without sensitive data
+    const projectResponse = {
+      id: project._id,
+      name: project.name,
+      bigquery_config: {
+        project_id: project.bigquery_config.project_id,
+        dataset_id: project.bigquery_config.dataset_id,
+        table_id: project.bigquery_config.table_id
+      },
+      voiceflow_config: {
+        project_id: project.voiceflow_config.project_id,
+        hasApiKey: !!project.voiceflow_config.api_key
+      },
+      createdAt: project.created_at
+    };
+
+    res.status(201).json(projectResponse);
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ message: 'Failed to create project' });
+  }
+});
+
+// POST /api/admin/users
+// Create a new user
+router.post('/users', [auth, admin], async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create new user
+    user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role: role || 'user'
+    });
+
+    await user.save();
+
+    // Return user without password
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt
+    };
+
+    res.status(201).json(userResponse);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ message: 'Failed to create user' });
+  }
+});
+
+// DELETE /api/admin/projects/:id
+router.delete('/projects/:id', [auth, admin], async (req, res) => {
+  try {
+    const project = await Project.findByIdAndDelete(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Also remove project references from users
+    await User.updateMany(
+      { $or: [
+        { projects: req.params.id },
+        { current_project: req.params.id }
+      ]},
+      { 
+        $pull: { projects: req.params.id },
+        $unset: { current_project: "" }
+      }
+    );
+
+    res.json({ message: 'Project deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ message: 'Failed to delete project' });
+  }
+});
+
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', [auth, admin], async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Failed to delete user' });
+  }
+});
+
+// POST /api/admin/users/:id/assign-project
+router.post('/users/:id/assign-project', [auth, admin], async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Add project to user's projects array if not already there
+    if (!user.projects.includes(projectId)) {
+      user.projects.push(projectId);
+    }
+
+    // Set as current project
+    user.current_project = projectId;
+
+    await user.save();
+
+    res.json({
+      message: 'Project assigned successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        projects: user.projects,
+        current_project: user.current_project
+      }
+    });
+  } catch (error) {
+    console.error('Error assigning project:', error);
+    res.status(500).json({ message: 'Failed to assign project' });
   }
 });
 

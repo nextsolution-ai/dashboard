@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
-// Check if the model already exists before creating it
-const Project = mongoose.models.Project || mongoose.model('Project', new mongoose.Schema({
+const projectSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -20,6 +19,6 @@ const Project = mongoose.models.Project || mongoose.model('Project', new mongoos
     type: Date,
     default: Date.now
   }
-}));
+});
 
-module.exports = Project; 
+module.exports = mongoose.model('Project', projectSchema); 
