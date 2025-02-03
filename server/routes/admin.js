@@ -277,4 +277,40 @@ router.post('/users/:id/assign-project', [auth, admin], async (req, res) => {
   }
 });
 
+// POST /api/admin/users/:id/remove-project
+router.post('/users/:id/remove-project', [auth, admin], async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Remove project from user's projects array
+    user.projects = user.projects.filter(p => !p.equals(projectId));
+
+    // If removed project was current project, unset it
+    if (user.current_project && user.current_project.equals(projectId)) {
+      user.current_project = user.projects[0] || null;
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'Project removed successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        projects: user.projects,
+        current_project: user.current_project
+      }
+    });
+  } catch (error) {
+    console.error('Error removing project:', error);
+    res.status(500).json({ message: 'Failed to remove project' });
+  }
+});
+
 module.exports = router; 

@@ -9,6 +9,7 @@ const voiceflowService = require('./services/voiceflowService');
 const projectsRouter = require('./routes/projects');
 const authMiddleware = require('./middleware/auth');
 const adminRoutes = require('./routes/admin');
+const userRoutes = require('./routes/users');
 
 // Connect to MongoDB
 connectDB();
@@ -33,6 +34,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', userRoutes);
 
 // Analytics endpoint (now part of home/performance)
 app.get('/api/analytics', authMiddleware, async (req, res) => {
