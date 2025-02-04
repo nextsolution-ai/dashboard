@@ -39,7 +39,8 @@ app.use('/api/users', userRoutes);
 // Analytics endpoint (now part of home/performance)
 app.get('/api/analytics', authMiddleware, async (req, res) => {
   try {
-    const data = await bigQueryService.getTableData(req.user.userId);
+    const { dateRange } = req.query;
+    const data = await bigQueryService.getTableData(req.user.userId, dateRange);
     res.json(data);
   } catch (error) {
     console.error('Error fetching analytics:', error);

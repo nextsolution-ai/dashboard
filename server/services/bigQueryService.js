@@ -136,24 +136,82 @@ class BigQueryService {
     }
   }
 
-  async getTableData(userId) {
+  async getTableData(userId, dateRange) {
     try {
-      // Get the current user's project
       const user = await User.findById(userId).populate('current_project');
-      const project = user.current_project;
-
-      if (!project) {
-        throw new Error('No project selected');
+      if (!user?.current_project?.bigquery_config) {
+        throw new Error('No project configuration found');
       }
 
-      const { project_id, dataset_id, table_id } = project.bigquery_config;
+      const { project_id, dataset_id, table_id } = user.current_project.bigquery_config;
 
-      // Use the project credentials
-      const url = `${config.bigQuery.apiBaseUrl}/projects/${project_id}/datasets/${dataset_id}/tables/${table_id}/data`;
-      const headers = await this.getHeaders();
+      let dateFilter = '';
+      // Handle custom date range object
+      if (typeof dateRange === 'object' && dateRange.startDate && dateRange.endDate) {
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        // Set end date to end of day
+        endDate.setHours(23, 59, 59, 999);
+        dateFilter = `WHERE TIMESTAMP(Date) BETWEEN TIMESTAMP('${startDate.toISOString()}') AND TIMESTAMP('${endDate.toISOString()}')`;
+      } 
+      // Handle string date range options
+      else if (dateRange) {
+        const now = new Date();
+        let startDate;
+        
+        switch(dateRange) {
+          case '24h':
+            startDate = new Date(now - 24 * 60 * 60 * 1000);
+            break;
+          case '7d':
+            startDate = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30d':
+            startDate = new Date(now - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case 'ytd':
+            startDate = new Date(now.getFullYear(), 0, 1); // January 1st of current year
+            break;
+          case '1y':
+            startDate = new Date(now - 365 * 24 * 60 * 60 * 1000);
+            break;
+          case 'ly':
+            const lastYear = now.getFullYear() - 1;
+            startDate = new Date(lastYear, 0, 1); // January 1st of last year
+            now = new Date(lastYear, 11, 31, 23, 59, 59); // December 31st of last year
+            break;
+          default:
+            startDate = new Date(now - 24 * 60 * 60 * 1000);
+        }
+        
+        dateFilter = `WHERE TIMESTAMP(Date) BETWEEN TIMESTAMP('${startDate.toISOString()}') AND TIMESTAMP('${now.toISOString()}')`;
+      }
 
-      const response = await axios.get(url, { headers });
-      return this.processDataForDashboard(response.data.rows || []);
+      const query = `
+        SELECT * FROM \`${project_id}.${dataset_id}.${table_id}\`
+        ${dateFilter}
+        ORDER BY TIMESTAMP(Date) DESC
+      `;
+
+      const requestBody = {
+        query: query,
+        useLegacySql: false
+      };
+
+      const response = await axios.post(
+        `https://bigquery.googleapis.com/bigquery/v2/projects/${project_id}/queries`,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${await this.getAuthToken()}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const rows = response.data.rows || [];
+      const processedData = this.processDataForDashboard(rows);
+      return processedData;
     } catch (error) {
       console.error('Error fetching BigQuery data:', error);
       throw error;
@@ -237,29 +295,40 @@ class BigQueryService {
       })
     };
 
+    const messageCount = rows.filter(row => 
+      safeGetFieldValue(row, 5) === "Text" || 
+      safeGetFieldValue(row, 5) === "Button"
+    ).length;
+
+    const uniqueUserCount = new Set(rows
+      .filter(row => safeGetFieldValue(row, 7)) 
+      .map(row => safeGetFieldValue(row, 7)) 
+    ).size;
+
     const metrics = {
-      interactions: uniqueIPs,
+      interactions: rows.filter(row => safeGetFieldValue(row, 0)).length,
+    
       questions: rows.filter(row => 
         safeGetFieldValue(row, 5) === "Text" || 
         safeGetFieldValue(row, 5) === "Button"
       ).length,
-      uniqueUsers: new Set(
-        rows.filter(row => safeGetFieldValue(row, 0))
-            .map(row => safeGetFieldValue(row, 0))
-      ).size,
+    
+      uniqueUsers: uniqueIPs, 
+    
       textQuestions: rows.filter(row => 
         safeGetFieldValue(row, 5) === "Text"
       ).length,
+    
       buttonClicks: rows.filter(row => 
         safeGetFieldValue(row, 5) === "Button"
       ).length,
+    
       avgMessagesPerUser: (
-        rows.length / 
-        new Set(rows.filter(row => safeGetFieldValue(row, 0))
-                   .map(row => safeGetFieldValue(row, 0))).size
+        messageCount / uniqueUserCount
       ).toFixed(2),
+    
       conversion: conversionMetrics
-    };
+    };   
 
     const buttonClicks = rows
       .filter(row => safeGetFieldValue(row, 5) === "Button")
@@ -284,20 +353,8 @@ class BigQueryService {
       return acc;
     }, {});
 
-    // Add this near the other interaction type calculations
-    const aiResponses = rows.filter(row => {
-      const type = safeGetFieldValue(row, 5);
-      const turnType = safeGetFieldValue(row, 8); // Assuming type is in field 8
-      return type === "Text" && 
-             turnType === "request" && 
-             safeGetFieldValue(row, 4)?.includes("asst_"); // Check for assistant ID in the message
-    }).length;
 
     const interactionTypeData = [
-      {
-        name: "AI",
-        value: aiResponses
-      },
       {
         name: "Button",
         value: metrics.buttonClicks
@@ -313,7 +370,7 @@ class BigQueryService {
       },
       {
         name: "All",
-        value: metrics.buttonClicks + metrics.textQuestions + aiResponses
+        value: metrics.buttonClicks + metrics.textQuestions
       }
     ];
 
