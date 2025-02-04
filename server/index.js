@@ -37,7 +37,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
 
 // Analytics endpoint (now part of home/performance)
-app.get('/api/analytics', authMiddleware, async (req, res) => {
+const analyticsRouter = express.Router();
+
+analyticsRouter.get('/', authMiddleware, async (req, res) => {
   try {
     const { dateRange } = req.query;
     const data = await bigQueryService.getTableData(req.user.userId, dateRange);
@@ -48,8 +50,12 @@ app.get('/api/analytics', authMiddleware, async (req, res) => {
   }
 });
 
+app.use('/api/analytics', analyticsRouter);
+
 // Knowledge base endpoint (used for training section)
-app.get('/api/knowledge-base', authMiddleware, async (req, res) => {
+const knowledgeBaseRouter = express.Router();
+
+knowledgeBaseRouter.get('/', authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 100 } = req.query;
     const data = await voiceflowService.getKnowledgeBaseDocs(req.user.userId, page, limit);
@@ -63,16 +69,22 @@ app.get('/api/knowledge-base', authMiddleware, async (req, res) => {
   }
 });
 
+app.use('/api/knowledge-base', knowledgeBaseRouter);
+
 // Health check endpoint
-app.get('/health', (req, res) => {
+const healthRouter = express.Router();
+
+healthRouter.get('/', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+app.use('/health', healthRouter);
 
 // Log all registered routes
 console.log('Registered routes:');
 app._router.stack.forEach(function(r){
   if (r.route && r.route.path){
-    console.log(r.route.method, r.route.path);
+    console.log(r.route.stack[0].method.toUpperCase(), r.route.path);
   }
 });
 

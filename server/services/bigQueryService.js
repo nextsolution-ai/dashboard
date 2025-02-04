@@ -5,59 +5,16 @@ const req = require('express');
 
 const COUNTRY_CODES = {
   // Europe
-  'Sweden': 'SE',
-  'Norway': 'NO',
-  'Denmark': 'DK',
-  'Finland': 'FI',
-  'United Kingdom': 'GB',
-  'UK': 'GB',
-  'Germany': 'DE',
-  'France': 'FR',
-  'Italy': 'IT',
-  'Spain': 'ES',
-  'Netherlands': 'NL',
-  'Belgium': 'BE',
-  'Switzerland': 'CH',
-  'Austria': 'AT',
-  'Poland': 'PL',
-  'Ireland': 'IE',
-  'Portugal': 'PT',
-  'Greece': 'GR',
+  'Sweden': 'SE', 'Norway': 'NO', 'Denmark': 'DK', 'Finland': 'FI', 'United Kingdom': 'GB', 'UK': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Switzerland': 'CH', 'Austria': 'AT', 'Poland': 'PL', 'Ireland': 'IE', 'Portugal': 'PT', 'Greece': 'GR', 'Iceland': 'IS', 'Czech Republic': 'CZ', 'Czechia': 'CZ', 'Hungary': 'HU', 'Slovakia': 'SK', 'Slovenia': 'SI', 'Romania': 'RO', 'Bulgaria': 'BG', 'Croatia': 'HR', 'Serbia': 'RS', 'Bosnia and Herzegovina': 'BA', 'Montenegro': 'ME', 'North Macedonia': 'MK', 'Albania': 'AL', 'Latvia': 'LV', 'Lithuania': 'LT', 'Estonia': 'EE', 'Ukraine': 'UA', 'Belarus': 'BY', 'Moldova': 'MD', 'Malta': 'MT', 'Luxembourg': 'LU', 'Andorra': 'AD', 'Liechtenstein': 'LI', 'Monaco': 'MC', 'San Marino': 'SM', 'Vatican City': 'VA',
 
   // Americas
-  'United States': 'US',
-  'USA': 'US',
-  'Canada': 'CA',
-  'Mexico': 'MX',
-  'Brazil': 'BR',
-  'Argentina': 'AR',
-  'Chile': 'CL',
-  'Colombia': 'CO',
-  'Peru': 'PE',
+  'United States': 'US', 'USA': 'US', 'Canada': 'CA', 'Mexico': 'MX', 'Brazil': 'BR', 'Argentina': 'AR', 'Chile': 'CL', 'Colombia': 'CO', 'Peru': 'PE', 'Venezuela': 'VE', 'Ecuador': 'EC', 'Bolivia': 'BO', 'Paraguay': 'PY', 'Uruguay': 'UY', 'Guyana': 'GY', 'Suriname': 'SR', 'Panama': 'PA', 'Costa Rica': 'CR', 'Nicaragua': 'NI', 'Honduras': 'HN', 'El Salvador': 'SV', 'Guatemala': 'GT', 'Belize': 'BZ', 'Cuba': 'CU', 'Dominican Republic': 'DO', 'Haiti': 'HT', 'Jamaica': 'JM', 'Trinidad and Tobago': 'TT', 'Bahamas': 'BS', 'Barbados': 'BB', 'Saint Lucia': 'LC', 'Grenada': 'GD', 'Saint Vincent and the Grenadines': 'VC', 'Saint Kitts and Nevis': 'KN', 'Antigua and Barbuda': 'AG', 'Dominica': 'DM',
 
   // Asia Pacific
-  'China': 'CN',
-  'Japan': 'JP',
-  'South Korea': 'KR',
-  'Korea': 'KR',
-  'India': 'IN',
-  'Australia': 'AU',
-  'New Zealand': 'NZ',
-  'Singapore': 'SG',
-  'Malaysia': 'MY',
-  'Indonesia': 'ID',
-  'Thailand': 'TH',
-  'Vietnam': 'VN',
-  'Philippines': 'PH',
+  'China': 'CN', 'Japan': 'JP', 'South Korea': 'KR', 'Korea': 'KR', 'India': 'IN', 'Australia': 'AU', 'New Zealand': 'NZ', 'Singapore': 'SG', 'Malaysia': 'MY', 'Indonesia': 'ID', 'Thailand': 'TH', 'Vietnam': 'VN', 'Philippines': 'PH', 'Taiwan': 'TW', 'Hong Kong': 'HK', 'Pakistan': 'PK', 'Bangladesh': 'BD', 'Sri Lanka': 'LK', 'Nepal': 'NP', 'Myanmar': 'MM', 'Kazakhstan': 'KZ', 'Uzbekistan': 'UZ', 'Turkmenistan': 'TM', 'Kyrgyzstan': 'KG', 'Tajikistan': 'TJ', 'Mongolia': 'MN', 'Brunei': 'BN', 'Fiji': 'FJ', 'Papua New Guinea': 'PG', 'Samoa': 'WS', 'Tonga': 'TO', 'Solomon Islands': 'SB', 'Vanuatu': 'VU', 'Micronesia': 'FM', 'Palau': 'PW', 'Marshall Islands': 'MH', 'Tuvalu': 'TV', 'Nauru': 'NR',
 
   // Middle East & Africa
-  'South Africa': 'ZA',
-  'United Arab Emirates': 'AE',
-  'UAE': 'AE',
-  'Saudi Arabia': 'SA',
-  'Israel': 'IL',
-  'Turkey': 'TR',
-  'Egypt': 'EG'
+  'South Africa': 'ZA', 'United Arab Emirates': 'AE', 'UAE': 'AE', 'Saudi Arabia': 'SA', 'Israel': 'IL', 'Turkey': 'TR', 'Egypt': 'EG', 'Iran': 'IR', 'Iraq': 'IQ', 'Jordan': 'JO', 'Lebanon': 'LB', 'Syria': 'SY', 'Kuwait': 'KW', 'Bahrain': 'BH', 'Qatar': 'QA', 'Oman': 'OM', 'Yemen': 'YE', 'Afghanistan': 'AF', 'Ethiopia': 'ET', 'Nigeria': 'NG', 'Kenya': 'KE', 'Ghana': 'GH', 'Uganda': 'UG', 'Tanzania': 'TZ', 'Sudan': 'SD', 'Algeria': 'DZ', 'Morocco': 'MA', 'Tunisia': 'TN', 'Libya': 'LY', 'Senegal': 'SN', 'Ivory Coast': 'CI', 'Cameroon': 'CM', 'Zambia': 'ZM', 'Zimbabwe': 'ZW', 'Angola': 'AO', 'Botswana': 'BW', 'Namibia': 'NA', 'Mozambique': 'MZ', 'Madagascar': 'MG', 'Rwanda': 'RW', 'Democratic Republic of the Congo': 'CD', 'Republic of the Congo': 'CG', 'Mauritius': 'MU', 'Seychelles': 'SC', 'Gambia': 'GM', 'Sierra Leone': 'SL', 'Liberia': 'LR', 'Burkina Faso': 'BF', 'Niger': 'NE', 'Mali': 'ML', 'Chad': 'TD', 'Guinea': 'GN', 'Benin': 'BJ', 'Togo': 'TG', 'Central African Republic': 'CF', 'Gabon': 'GA', 'Equatorial Guinea': 'GQ', 'Comoros': 'KM', 'Djibouti': 'DJ', 'Eritrea': 'ER', 'Lesotho': 'LS', 'Eswatini': 'SZ', 'Guinea-Bissau': 'GW', 'Burundi': 'BI', 'South Sudan': 'SS'
 };
 
 class BigQueryService {
@@ -306,7 +263,7 @@ class BigQueryService {
     ).size;
 
     const metrics = {
-      interactions: rows.filter(row => safeGetFieldValue(row, 0)).length,
+      interactions: new Set(rows.map(row => safeGetFieldValue(row, 0))).size,
     
       questions: rows.filter(row => 
         safeGetFieldValue(row, 5) === "Text" || 
