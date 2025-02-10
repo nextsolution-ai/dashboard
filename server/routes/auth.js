@@ -98,16 +98,25 @@ router.post('/login', cors(corsOptions), async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Send response
-    res.json({
+    // Send response with permissions
+    const userResponse = {
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        permissions: user.permissions || {
+          home: true,
+          conversations: true,
+          knowledgeBase: true,
+          prototype: true
+        }
       }
-    });
+    };
+    
+    console.log('Sending login response:', userResponse); // Log what's being sent
+    res.json(userResponse);
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error' });

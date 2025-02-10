@@ -15,23 +15,41 @@ router.get('/test', [auth, admin], (req, res) => {
 // List all users with their projects
 router.get('/users', [auth, admin], async (req, res) => {
   try {
-    const users = await User.find().select('-password').populate('projects').populate('current_project');
-    const projects = await Project.find();
+    const users = await User.find()
+      .select('-password')
+      .populate('projects', 'name') // Only get project names
+      .populate('current_project', 'name')
+      .lean(); // Use lean() to get plain objects instead of Mongoose documents
 
-    const formattedUsers = users.map(user => ({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      projects: user.projects.map(project => project._id),
-      projectsDetails: user.projects.map(project => ({
-        id: project._id,
-        name: project.name
-      })),
-      current_project: user.current_project?._id,
-      current_project_name: user.current_project?.name,
-      createdAt: user.createdAt
-    }));
+    const formattedUsers = users.map(user => {
+      // Create a clean permissions object
+      const permissions = {
+        home: true,
+        conversations: true,
+        knowledgeBase: true,
+        prototype: true,
+        ...Object.fromEntries(
+          Object.entries(user.permissions || {})
+            .filter(([key]) => ['home', 'conversations', 'knowledgeBase', 'prototype'].includes(key))
+        )
+      };
+
+      return {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        permissions,
+        projects: user.projects.map(project => project._id),
+        projectsDetails: user.projects.map(project => ({
+          id: project._id,
+          name: project.name
+        })),
+        current_project: user.current_project?._id,
+        current_project_name: user.current_project?.name,
+        createdAt: user.createdAt
+      };
+    });
 
     res.json(formattedUsers);
   } catch (error) {
@@ -44,38 +62,31 @@ router.get('/users', [auth, admin], async (req, res) => {
 // List all projects with their associated users
 router.get('/projects', [auth, admin], async (req, res) => {
   try {
-    const projects = await Project.find();
-    const users = await User.find().select('-password');
-
-    const formattedProjects = await Promise.all(projects.map(async project => {
-      // Find users who have this project
+    const projects = await Project.find().lean();
+    const users = await User.find().select('projects current_project').lean();
+    
+    const formattedProjects = projects.map(project => {
+      // Find users who have this project assigned or as current project
       const projectUsers = users.filter(user => 
-        user.projects.includes(project._id) ||
-        user.current_project?.equals(project._id)
+        user.projects.some(p => p.toString() === project._id.toString()) ||
+        user.current_project?.toString() === project._id.toString()
       );
 
       return {
         id: project._id,
         name: project.name,
-        createdAt: project.created_at,
-        bigquery_config: {
-          project_id: project.bigquery_config.project_id,
-          dataset_id: project.bigquery_config.dataset_id,
-          table_id: project.bigquery_config.table_id
-        },
-        voiceflow_config: {
-          project_id: project.voiceflow_config.project_id,
-          // Don't send API key for security
-          hasApiKey: !!project.voiceflow_config.api_key
-        },
+        bigquery_config: project.bigquery_config,
+        voiceflow_config: project.voiceflow_config,
+        prototype_config: project.prototype_config,
+        has_prototype: !!project.prototype_config,
         users: projectUsers.map(user => ({
           id: user._id,
-          name: user.name,
-          email: user.email,
-          isCurrentProject: user.current_project?.equals(project._id)
-        }))
+          isCurrentProject: user.current_project?.toString() === project._id.toString()
+        })),
+        usersCount: projectUsers.length,
+        createdAt: project.created_at
       };
-    }));
+    });
 
     res.json(formattedProjects);
   } catch (error) {
@@ -113,45 +124,27 @@ router.get('/projects/:projectId/users', [auth, admin], async (req, res) => {
 // Create a new project
 router.post('/projects', [auth, admin], async (req, res) => {
   try {
-    const { 
-      name, 
-      bigquery_config, 
-      voiceflow_config 
-    } = req.body;
-
-    // Create new project
     const project = new Project({
-      name,
-      bigquery_config: {
-        project_id: bigquery_config.project_id,
-        dataset_id: bigquery_config.dataset_id,
-        table_id: bigquery_config.table_id
-      },
-      voiceflow_config: {
-        api_key: voiceflow_config.api_key,
-        project_id: voiceflow_config.project_id
-      }
+      name: req.body.name,
+      bigquery_config: req.body.bigquery_config,
+      voiceflow_config: req.body.voiceflow_config,
+      prototype_config: req.body.prototype_config
     });
 
     await project.save();
 
-    // Return the project without sensitive data
-    const projectResponse = {
+    // Return the newly created project with empty users array and count
+    res.json({
       id: project._id,
       name: project.name,
-      bigquery_config: {
-        project_id: project.bigquery_config.project_id,
-        dataset_id: project.bigquery_config.dataset_id,
-        table_id: project.bigquery_config.table_id
-      },
-      voiceflow_config: {
-        project_id: project.voiceflow_config.project_id,
-        hasApiKey: !!project.voiceflow_config.api_key
-      },
+      bigquery_config: project.bigquery_config,
+      voiceflow_config: project.voiceflow_config,
+      prototype_config: project.prototype_config,
+      has_prototype: !!project.prototype_config,
+      users: [],
+      usersCount: 0,
       createdAt: project.created_at
-    };
-
-    res.status(201).json(projectResponse);
+    });
   } catch (error) {
     console.error('Error creating project:', error);
     res.status(500).json({ message: 'Failed to create project' });
@@ -162,25 +155,31 @@ router.post('/projects', [auth, admin], async (req, res) => {
 // Create a new user
 router.post('/users', [auth, admin], async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, permissions } = req.body;
 
-    // Check if user already exists
+    // Check if user exists
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create new user
+    // Create user with permissions
     user = new User({
       name,
       email,
-      password: hashedPassword,
-      role: role || 'user'
+      password,
+      role: role || 'user',
+      permissions: permissions || {
+        home: true,
+        conversations: true,
+        knowledgeBase: true,
+        prototype: false
+      }
     });
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
 
     await user.save();
 
@@ -190,10 +189,13 @@ router.post('/users', [auth, admin], async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      permissions: user.permissions,
+      projects: [],
+      current_project: null,
       createdAt: user.createdAt
     };
 
-    res.status(201).json(userResponse);
+    res.json(userResponse);
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ message: 'Failed to create user' });
@@ -310,6 +312,132 @@ router.post('/users/:id/remove-project', [auth, admin], async (req, res) => {
   } catch (error) {
     console.error('Error removing project:', error);
     res.status(500).json({ message: 'Failed to remove project' });
+  }
+});
+
+// PUT /api/admin/projects/:id
+router.put('/projects/:id', [auth, admin], async (req, res) => {
+  try {
+    const project = await Project.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: req.body.name,
+        bigquery_config: req.body.bigquery_config,
+        voiceflow_config: req.body.voiceflow_config,
+        prototype_config: req.body.prototype_config
+      },
+      { new: true }
+    ).lean();
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    const users = await User.find({
+      $or: [
+        { projects: project._id },
+        { current_project: project._id }
+      ]
+    }).select('projects current_project').lean();
+
+    const projectUsers = users.map(user => ({
+      id: user._id,
+      isCurrentProject: user.current_project?.toString() === project._id.toString()
+    }));
+
+    res.json({
+      id: project._id,
+      name: project.name,
+      bigquery_config: project.bigquery_config,
+      voiceflow_config: project.voiceflow_config,
+      prototype_config: project.prototype_config,
+      has_prototype: !!project.prototype_config,
+      users: projectUsers,
+      usersCount: projectUsers.length,
+      createdAt: project.created_at
+    });
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ message: 'Failed to update project' });
+  }
+});
+
+// PUT /api/admin/users/:id
+router.put('/users/:id', [auth, admin], async (req, res) => {
+  try {
+    const { name, email, role, password, permissions } = req.body;
+    
+    const updateFields = {
+      name,
+      email,
+      role,
+      permissions: permissions || {
+        home: true,
+        conversations: true,
+        knowledgeBase: true,
+        prototype: false
+      }
+    };
+
+    // Only update password if provided
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateFields.password = await bcrypt.hash(password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      updateFields,
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: user.permissions,
+      projects: user.projects,
+      current_project: user.current_project,
+      createdAt: user.createdAt
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ message: 'Failed to update user' });
+  }
+});
+
+// PUT /api/admin/users/:id/permissions
+router.put('/users/:id/permissions', [auth, admin], async (req, res) => {
+  try {
+    const { permissions } = req.body;
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { permissions },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: user.permissions,
+      projects: user.projects,
+      current_project: user.current_project
+    });
+  } catch (error) {
+    console.error('Error updating user permissions:', error);
+    res.status(500).json({ message: 'Failed to update user permissions' });
   }
 });
 

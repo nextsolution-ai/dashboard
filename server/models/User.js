@@ -31,6 +31,21 @@ const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema(
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  permissions: {
+    type: {
+      home: { type: Boolean, default: true },
+      conversations: { type: Boolean, default: true },
+      knowledgeBase: { type: Boolean, default: true },
+      prototype: { type: Boolean, default: true }
+    },
+    default: {
+      home: true,
+      conversations: true,
+      knowledgeBase: true,
+      prototype: true
+    },
+    _id: false
   }
 }));
 
