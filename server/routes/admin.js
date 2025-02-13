@@ -17,21 +17,17 @@ router.get('/users', [auth, admin], async (req, res) => {
   try {
     const users = await User.find()
       .select('-password')
-      .populate('projects', 'name') // Only get project names
+      .populate('projects', 'name')
       .populate('current_project', 'name')
-      .lean(); // Use lean() to get plain objects instead of Mongoose documents
+      .lean();
 
     const formattedUsers = users.map(user => {
-      // Create a clean permissions object
+      // Get the actual permission values from the flattened structure
       const permissions = {
-        home: true,
-        conversations: true,
-        knowledgeBase: true,
-        prototype: true,
-        ...Object.fromEntries(
-          Object.entries(user.permissions || {})
-            .filter(([key]) => ['home', 'conversations', 'knowledgeBase', 'prototype'].includes(key))
-        )
+        home: user['permissions.home'] ?? true,
+        conversations: user['permissions.conversations'] ?? true,
+        knowledgeBase: user['permissions.knowledgeBase'] ?? true,
+        prototype: user['permissions.prototype'] ?? false
       };
 
       return {
@@ -416,22 +412,57 @@ router.put('/users/:id/permissions', [auth, admin], async (req, res) => {
   try {
     const { permissions } = req.body;
     
+    console.log('Incoming permissions update:', permissions);
+
+    // Validate permissions object
+    if (!permissions || typeof permissions !== 'object') {
+      return res.status(400).json({ message: 'Invalid permissions format' });
+    }
+
+    // Create update object with flattened structure
+    const updateObj = {
+      'permissions.home': Boolean(permissions.home),
+      'permissions.conversations': Boolean(permissions.conversations),
+      'permissions.knowledgeBase': Boolean(permissions.knowledgeBase),
+      'permissions.prototype': Boolean(permissions.prototype)
+    };
+
+    console.log('Update object:', updateObj);
+
+    // Update the user
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { permissions },
-      { new: true }
-    ).select('-password');
+      { $set: updateObj },
+      { 
+        new: true,
+        runValidators: true 
+      }
+    );
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Log the raw user document before transformation
+    console.log('Raw user document:', {
+      'permissions.home': user.get('permissions.home'),
+      'permissions.conversations': user.get('permissions.conversations'),
+      'permissions.knowledgeBase': user.get('permissions.knowledgeBase'),
+      'permissions.prototype': user.get('permissions.prototype')
+    });
+
+    // The response will be automatically transformed by the toJSON transform
     res.json({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      permissions: user.permissions,
+      permissions: {
+        home: user['permissions.home'],
+        conversations: user['permissions.conversations'],
+        knowledgeBase: user['permissions.knowledgeBase'],
+        prototype: user['permissions.prototype']
+      },
       projects: user.projects,
       current_project: user.current_project
     });
