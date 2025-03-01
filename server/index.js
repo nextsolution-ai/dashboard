@@ -11,6 +11,9 @@ const authMiddleware = require('./middleware/auth');
 const adminRoutes = require('./routes/admin');
 const userRoutes = require('./routes/users');
 
+// Add at the top of the file
+process.removeAllListeners('warning');
+
 // Connect to MongoDB
 connectDB();
 
