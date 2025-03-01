@@ -22,12 +22,13 @@ router.get('/users', [auth, admin], async (req, res) => {
       .lean();
 
     const formattedUsers = users.map(user => {
-      // Get the actual permission values from the flattened structure
+      // Ensure all permission fields exist with defaults
       const permissions = {
-        home: user['permissions.home'] ?? true,
-        conversations: user['permissions.conversations'] ?? true,
-        knowledgeBase: user['permissions.knowledgeBase'] ?? true,
-        prototype: user['permissions.prototype'] ?? false
+        home: true,
+        conversations: true,
+        knowledgeBase: true,
+        prototype: false,  // Default to false
+        ...(user.permissions || {}),  // Override with actual user permissions
       };
 
       return {
@@ -35,7 +36,7 @@ router.get('/users', [auth, admin], async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        permissions,
+        permissions,  // Use the complete permissions object
         projects: user.projects.map(project => project._id),
         projectsDetails: user.projects.map(project => ({
           id: project._id,
@@ -424,7 +425,8 @@ router.put('/users/:id/permissions', [auth, admin], async (req, res) => {
       'permissions.home': Boolean(permissions.home),
       'permissions.conversations': Boolean(permissions.conversations),
       'permissions.knowledgeBase': Boolean(permissions.knowledgeBase),
-      'permissions.prototype': Boolean(permissions.prototype)
+      'permissions.prototype': Boolean(permissions.prototype),
+      'permissions.emailDash': Boolean(permissions.emailDash)
     };
 
     console.log('Update object:', updateObj);
@@ -448,7 +450,8 @@ router.put('/users/:id/permissions', [auth, admin], async (req, res) => {
       'permissions.home': user.get('permissions.home'),
       'permissions.conversations': user.get('permissions.conversations'),
       'permissions.knowledgeBase': user.get('permissions.knowledgeBase'),
-      'permissions.prototype': user.get('permissions.prototype')
+      'permissions.prototype': user.get('permissions.prototype'),
+      'permissions.emailDash': user.get('permissions.emailDash')
     });
 
     // The response will be automatically transformed by the toJSON transform
@@ -461,7 +464,8 @@ router.put('/users/:id/permissions', [auth, admin], async (req, res) => {
         home: user['permissions.home'],
         conversations: user['permissions.conversations'],
         knowledgeBase: user['permissions.knowledgeBase'],
-        prototype: user['permissions.prototype']
+        prototype: user['permissions.prototype'],
+        emailDash: user['permissions.emailDash']
       },
       projects: user.projects,
       current_project: user.current_project

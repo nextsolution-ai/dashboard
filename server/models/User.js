@@ -48,6 +48,10 @@ const userSchema = new mongoose.Schema({
   'permissions.prototype': {
     type: Boolean,
     default: false
+  },
+  'permissions.emailDash': {
+    type: Boolean,
+    default: true
   }
 });
 
@@ -58,7 +62,8 @@ userSchema.set('toJSON', {
       home: ret['permissions.home'],
       conversations: ret['permissions.conversations'],
       knowledgeBase: ret['permissions.knowledgeBase'],
-      prototype: ret['permissions.prototype']
+      prototype: ret['permissions.prototype'],
+      emailDash: ret['permissions.emailDash']
     };
     
     // Remove the flattened fields
@@ -66,6 +71,7 @@ userSchema.set('toJSON', {
     delete ret['permissions.conversations'];
     delete ret['permissions.knowledgeBase'];
     delete ret['permissions.prototype'];
+    delete ret['permissions.emailDash'];
     
     return ret;
   }

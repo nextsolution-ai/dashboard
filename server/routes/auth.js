@@ -110,7 +110,8 @@ router.post('/login', cors(corsOptions), async (req, res) => {
           home: true,
           conversations: true,
           knowledgeBase: true,
-          prototype: true
+          prototype: true,
+          emailDash: true
         }
       }
     };
