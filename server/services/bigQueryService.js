@@ -224,30 +224,16 @@ const COUNTRY_CODES = {
 
 class BigQueryService {
   constructor() {
-    const serviceAccountPath = path.join(__dirname, 'service_account.json');
-    
-    console.log('Looking for service account file at:', serviceAccountPath);
-    console.log('Current directory:', __dirname);
-    
-    // Check if file exists
-    try {
-      if (fs.existsSync(serviceAccountPath)) {
-        console.log('✅ Service account file found');
-        const fileContents = fs.readFileSync(serviceAccountPath, 'utf8');
-        console.log('Service account file contents:', fileContents.substring(0, 100) + '...');
-      } else {
-        console.error('❌ Service account file not found');
-        console.log('Directory contents:', fs.readdirSync(__dirname));
-      }
-    } catch (err) {
-      console.error('Error checking for service account file:', err);
-    }
-
     this.bigQueryClient = new BigQuery({
-      keyFilename: serviceAccountPath,
-      projectId: config.bigQuery.projectId
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY
+      }
     });
-  } 
+    
+    console.log('BigQuery client initialized with project:', process.env.GOOGLE_CLOUD_PROJECT_ID);
+  }
   
 
   async getTableData(userId, dateRange) {
