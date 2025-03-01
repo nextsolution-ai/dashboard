@@ -223,11 +223,29 @@ const COUNTRY_CODES = {
 
 class BigQueryService {
   constructor() {
+    const serviceAccountPath = path.join(__dirname, 'service_account.json');
+    
+    console.log('Looking for service account file at:', serviceAccountPath);
+    
+    // Check if file exists
+    try {
+      if (fs.existsSync(serviceAccountPath)) {
+        console.log('✅ Service account file found');
+      } else {
+        console.error('❌ Service account file not found');
+        console.log('Current directory:', __dirname);
+        console.log('Directory contents:', fs.readdirSync(__dirname));
+      }
+    } catch (err) {
+      console.error('Error checking for service account file:', err);
+    }
+
     this.bigQueryClient = new BigQuery({
-      keyFilename: path.join(__dirname, 'service_account.json'),
+      keyFilename: serviceAccountPath,
       projectId: config.bigQuery.projectId
     });
-  }
+  } 
+  
 
   async getTableData(userId, dateRange) {
     try {

@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const cors = require('cors');
 const auth = require('../middleware/auth');
-const bigQueryService = require('../services/bigQueryService');
 
 const corsOptions = {
   origin: function(origin, callback) {
@@ -17,11 +16,8 @@ const corsOptions = {
       'https://chatlabs-alpha.vercel.app',
       'https://chatlabs.vercel.app'
     ];
-
-    // Add any domain that matches the pattern
-    const vercelPattern = /^https:\/\/chatlabs-[a-z0-9-]+-randompenna68-gmailcoms-projects\.vercel\.app$/;
     
-    const isAllowed = allowedOrigins.includes(origin) || vercelPattern.test(origin);
+    const isAllowed = allowedOrigins.includes(origin);
 
     if (isAllowed) {
       callback(null, true);
@@ -150,9 +146,6 @@ router.post('/refresh-token', auth, async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-
-    // Also refresh the BigQuery auth token
-    await bigQueryService.refreshAuthToken();
 
     res.json({ 
       token,

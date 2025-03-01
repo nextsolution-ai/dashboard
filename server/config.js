@@ -6,7 +6,6 @@ module.exports = {
   bigQuery: {
     projectId: process.env.BIGQUERY_PROJECT_ID,
     datasetId: process.env.BIGQUERY_DATASET_ID,
-    tableId: process.env.BIGQUERY_TABLE_ID,
-    apiBaseUrl: process.env.BIGQUERY_API_BASE_URL
+    tableId: process.env.BIGQUERY_TABLE_ID
   }
 }; 
