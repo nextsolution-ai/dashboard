@@ -2,6 +2,7 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const config = require('../config');
 const User = require('../models/User');
 const path = require('path');
+const fs = require('fs');
 const req = require('express');
 
 const COUNTRY_CODES = {
@@ -226,14 +227,16 @@ class BigQueryService {
     const serviceAccountPath = path.join(__dirname, 'service_account.json');
     
     console.log('Looking for service account file at:', serviceAccountPath);
+    console.log('Current directory:', __dirname);
     
     // Check if file exists
     try {
       if (fs.existsSync(serviceAccountPath)) {
         console.log('✅ Service account file found');
+        const fileContents = fs.readFileSync(serviceAccountPath, 'utf8');
+        console.log('Service account file contents:', fileContents.substring(0, 100) + '...');
       } else {
         console.error('❌ Service account file not found');
-        console.log('Current directory:', __dirname);
         console.log('Directory contents:', fs.readdirSync(__dirname));
       }
     } catch (err) {
